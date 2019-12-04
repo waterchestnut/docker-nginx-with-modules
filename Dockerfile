@@ -1,4 +1,4 @@
-ARG nginx_version=1.16.1
+ARG nginx_version=1.13.0
 FROM nginx:${nginx_version} AS build
 
 SHELL ["/bin/bash", "-c"]
@@ -44,7 +44,7 @@ RUN set -x \
 ENV LUAJIT_LIB=/usr/local/lib \
     LUAJIT_INC=/usr/local/include/luajit-2.1
 
-ARG modules
+ARG modules="https://github.com/vozlt/nginx-module-vts.git:v0.1.18"
 RUN set -x \
     && nginx_version=$(echo ${NGINX_VERSION} | sed 's/-.*//g') \
     && curl -fSL "https://nginx.org/download/nginx-${nginx_version}.tar.gz" \
