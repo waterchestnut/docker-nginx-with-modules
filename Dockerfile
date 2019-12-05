@@ -123,6 +123,6 @@ RUN set -x \
 
 EXPOSE 8080 8443
 
-USER nginx
+# USER nginx
 
 WORKDIR /etc/nginx
