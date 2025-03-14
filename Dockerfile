@@ -1,4 +1,4 @@
-ARG nginx_version=1.25.4
+ARG nginx_version=1.26.3
 FROM nginx:${nginx_version} AS build
 
 SHELL ["/bin/bash", "-c"]
@@ -6,35 +6,20 @@ SHELL ["/bin/bash", "-c"]
 RUN set -x \
     && apt-get update \
     && apt-get install -y --no-install-suggests \
-       libluajit-5.1-dev libpam0g-dev zlib1g-dev libpcre3-dev \
-       libexpat1-dev git curl build-essential libxml2 libxslt1.1 libxslt1-dev autoconf libtool libssl-dev
+       libluajit-5.1-dev libpam0g-dev zlib1g-dev libpcre3-dev libpcre2-dev \
+       libexpat1-dev git curl build-essential lsb-release libxml2 libxslt1.1 libxslt1-dev autoconf libtool libssl-dev \
+       unzip libmaxminddb-dev libbrotli-dev cmake pkg-config libjansson-dev
 
-ARG modsecurity_version=v3.0.3
-RUN set -x \
-    && git clone --depth 1 -b ${modsecurity_version} https://github.com/SpiderLabs/ModSecurity.git /usr/local/src/modsecurity \
-    && cd /usr/local/src/modsecurity \
-    && git submodule init \
-    && git submodule update \
-    && ./build.sh \
-    && ./configure --prefix=/usr/local \
-    && make \
-    && make install
+RUN git clone --depth 1 --branch v3.2.0 https://github.com/benmcollins/libjwt.git && \
+       mkdir libjwt/build && \
+       cd libjwt/build && cmake .. && make && make install
 
-ARG owasp_modsecurity_crs_version=v3.1.0
+ARG openresty_package_version=1.27.1.1-1~bookworm1
 RUN set -x \
-    && nginx_modsecurity_conf_dir="/usr/local/etc/modsecurity" \
-    && mkdir -p ${nginx_modsecurity_conf_dir} \
-    && cd ${nginx_modsecurity_conf_dir} \
-    && curl -fSL "https://github.com/SpiderLabs/owasp-modsecurity-crs/archive/${owasp_modsecurity_crs_version}.tar.gz" \
-    |  tar -xvzf - \
-    && mv owasp-modsecurity-crs{-${owasp_modsecurity_crs_version#v},} \
-    && cd -
-
-RUN set -x \
-    && curl -sS https://openresty.org/package/pubkey.gpg | apt-key add - \
-    && echo 'deb http://openresty.org/package/debian stretch openresty' | tee -a /etc/apt/sources.list.d/openresty.list \
+    && curl -fsSL https://openresty.org/package/pubkey.gpg | apt-key add - \
+    && echo "deb https://openresty.org/package/$(uname -m | grep -qE 'aarch64|arm64' && echo -n 'arm64/')debian $(lsb_release -sc) openresty" | tee -a /etc/apt/sources.list.d/openresty.list \
     && apt-get update \
-    && apt-get install -y --no-install-suggests openresty \
+    && apt-get install -y --no-install-suggests openresty=${openresty_package_version} \
     && cd /usr/local/openresty \
     && cp -vr ./luajit/* /usr/local/ \
     && rm -d /usr/local/share/lua/5.1 \
@@ -44,7 +29,7 @@ RUN set -x \
 ENV LUAJIT_LIB=/usr/local/lib \
     LUAJIT_INC=/usr/local/include/luajit-2.1
 
-ARG modules=https://github.com/vozlt/nginx-module-vts.git:v0.2.2,https://github.com/openresty/echo-nginx-module.git
+ARG modules=https://github.com/vozlt/nginx-module-vts.git:v0.2.4,https://github.com/openresty/echo-nginx-module.git
 RUN set -x \
     && nginx_version=$(echo ${NGINX_VERSION} | sed 's/-.*//g') \
     && curl -fSL "https://nginx.org/download/nginx-${nginx_version}.tar.gz" \
@@ -57,7 +42,7 @@ RUN set -x \
         module_repo=$(echo $module | sed -E 's@^(((https?|git)://)?[^:]+).*@\1@g'); \
         module_tag=$(echo $module | sed -E 's@^(((https?|git)://)?[^:]+):?([^:/]*)@\4@g'); \
         dirname=$(echo "${module_repo}" | sed -E 's@^.*/|\..*$@@g'); \
-        git clone "${module_repo}"; \
+        git clone --recursive "${module_repo}"; \
         cd ${dirname}; \
         git fetch --tags; \
         if [ -n "${module_tag}" ]; then \
@@ -80,8 +65,22 @@ RUN set -x \
     && make modules \
     && cp -v objs/*.so /usr/lib/nginx/modules/
 
+ARG luarocks_version=3.3.1
 RUN set -x \
-    && strip --strip-unneeded /usr/local/bin/* /usr/local/lib/*.a /usr/local/lib/*.so* /usr/lib/nginx/modules/*.so
+    && curl -fSL "https://luarocks.org/releases/luarocks-${luarocks_version}.tar.gz" \
+    |  tar -C /usr/local/src -xzvf- \
+    && ln -s /usr/local/src/luarocks-${luarocks_version} /usr/local/src/luarocks \
+    && cd /usr/local/src/luarocks \
+    && ./configure && make && make install
+
+ARG lua_modules
+RUN set -x \
+    && ln -s /usr/include/$(uname -m)-linux-gnu /usr/include/linux-gnu \
+    && IFS=","; \
+      for lua_module in ${lua_modules}; do \
+        unset IFS; \
+        luarocks install ${lua_module}; \
+      done
 
 FROM nginx:${nginx_version}
 
@@ -91,6 +90,8 @@ COPY --from=build /usr/local/lib      /usr/local/lib
 COPY --from=build /usr/local/etc      /usr/local/etc
 COPY --from=build /usr/local/share    /usr/local/share
 COPY --from=build /usr/lib/nginx/modules /usr/lib/nginx/modules
+COPY --from=build /usr/local/lib/libjwt.so /usr/local/lib/libjwt.so
+
 
 ENV LUAJIT_LIB=/usr/local/lib \
     LUAJIT_INC=/usr/local/include/luajit-2.1
@@ -109,17 +110,20 @@ RUN set -x \
       net-tools \
       procps \
       tcpdump \
+      rsync \
+      unzip \
       vim-tiny \
+      libmaxminddb0 \
+      libbrotli1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && ldconfig -v \
     && ls /etc/nginx/modules/*.so | grep -v debug \
     |  xargs -I{} sh -c 'echo "load_module {};" | tee -a  /etc/nginx/modules/all.conf' \
     && sed -i -E 's|listen\s+80|&80|g' /etc/nginx/conf.d/default.conf \
-    && ln -sf /dev/stdout /var/log/modsec_audit.log \
     && touch /var/run/nginx.pid \
     && mkdir -p /var/cache/nginx \
-    && chown -R nginx:nginx /etc/nginx /var/log/nginx /var/cache/nginx /var/run/nginx.pid /var/log/modsec_audit.log
+    && chown -R nginx:nginx /etc/nginx /var/log/nginx /var/cache/nginx /var/run/nginx.pid
 
 EXPOSE 8080 8443
 

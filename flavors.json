@@ -3,19 +3,26 @@
     {
       "name": "tsuru",
       "modules": [
-        "https://github.com/openresty/headers-more-nginx-module.git",
-        "https://github.com/FRiCKLE/ngx_cache_purge.git:pr-45",
-        "https://github.com/simplresty/ngx_devel_kit.git:v0.3.0",
+        "https://github.com/simplresty/ngx_devel_kit.git:v0.3.1",
+        "https://github.com/openresty/lua-nginx-module.git:v0.10.27",
+        "https://github.com/openresty/lua-ssl-nginx-module.git",
         "https://github.com/openresty/echo-nginx-module.git",
+        "https://github.com/openresty/headers-more-nginx-module.git",
+        "https://github.com/tsuru/ngx-location-name-module.git:main",
+        "https://github.com/FRiCKLE/ngx_cache_purge.git:pr-45",
         "https://github.com/wandenberg/nginx-push-stream-module.git",
-        "https://github.com/openresty/lua-nginx-module.git:v0.10.15",
-        "https://github.com/masterzen/nginx-upload-progress-module.git",
-        "https://github.com/vozlt/nginx-module-vts.git:v0.1.18",
-        "https://github.com/aperezdc/ngx-fancyindex.git",
-        "https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git:pr-19",
-        "https://github.com/openresty/lua-ssl-nginx-module.git:v0.01rc2",
-        "https://github.com/SpiderLabs/ModSecurity-nginx.git:v1.0.0",
-        "https://github.com/arut/nginx-dav-ext-module:v3.0.0"
+        "https://github.com/vozlt/nginx-module-vts.git:v0.2.3",
+        "https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git",
+        "https://github.com/leev/ngx_http_geoip2_module:3.4",
+        "https://github.com/wandenberg/nginx-sorted-querystring-module.git",
+        "https://github.com/google/ngx_brotli.git:a71f9312c2deb28875acc7bacfdd5695a111aa53"
+      ],
+      "lua_modules": [
+        "tsuru-rpaasv2 INOTIFY_INCDIR=/usr/include/linux-gnu",
+        "lua-resty-http 0.17.2-0",
+        "lua-resty-balancer 0.04",
+        "lua-resty-cookie 0.4.0-1",
+        "lua-resty-libjwt 0.1.0-1"
       ]
     },
     {
