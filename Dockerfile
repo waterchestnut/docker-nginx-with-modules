@@ -29,7 +29,7 @@ RUN set -x \
 ENV LUAJIT_LIB=/usr/local/lib \
     LUAJIT_INC=/usr/local/include/luajit-2.1
 
-ARG modules=https://github.com/vozlt/nginx-module-vts.git:v0.2.4,https://github.com/openresty/echo-nginx-module.git
+ARG modules=https://github.com/simplresty/ngx_devel_kit.git:v0.3.3,https://github.com/openresty/lua-nginx-module.git:v0.10.28,https://github.com/vozlt/nginx-module-vts.git:v0.2.4,https://github.com/openresty/echo-nginx-module.git
 RUN set -x \
     && nginx_version=$(echo ${NGINX_VERSION} | sed 's/-.*//g') \
     && curl -fSL "https://nginx.org/download/nginx-${nginx_version}.tar.gz" \
